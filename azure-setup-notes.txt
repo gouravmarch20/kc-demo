@@ -1,0 +1,9 @@
+Basics
+Subscription: Azure subscription 1
+Resource group: kyc-portal
+Resource group location: eastus
+Resource Name: acs-kyc-dev-yourname
+Data location: India
+Managed Identity Type: None
+
+# Use Primary connection string in .env.local as AZURE_COMMUNICATION_CONNECTION_STRING
