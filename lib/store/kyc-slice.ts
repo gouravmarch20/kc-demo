@@ -35,6 +35,18 @@ export const initialKycJourneyState: KycJourneyState = {
   media: {
     photoDataUrl: null,
     photoUrl: null,
+    recordings: {
+      customerVideoUrl: null,
+      customerVideoOnlyUrl: null,
+      agentVideoUrl: null,
+      combinedVideoUrl: null,
+      fullVideoUrl: null,
+      customerMicAudioUrl: null,
+      customerAudioUrl: null,
+      mixedAudioUrl: null,
+      agentAudioUrl: null,
+      recordedAt: null,
+    },
   },
   otpVerified: false,
   finalSubmitted: false,

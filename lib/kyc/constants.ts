@@ -5,7 +5,8 @@ export const KYC_STEPS = [
   { id: 4, label: "Questions" },
   { id: 5, label: "Device Check" },
   { id: 6, label: "KYC" },
-  { id: 7, label: "Summary" },
+  { id: 7, label: "Preview" },
+  { id: 8, label: "Summary" },
 ] as const;
 
 export type PolicyInfo = {

@@ -10,6 +10,18 @@ export const kycPersistTransform = createTransform<KycJourneyState, KycJourneySt
     media: {
       ...inbound.media,
       photoDataUrl: null,
+      recordings: {
+        customerVideoUrl: null,
+        customerVideoOnlyUrl: null,
+        agentVideoUrl: null,
+        combinedVideoUrl: null,
+        fullVideoUrl: null,
+        customerMicAudioUrl: null,
+        customerAudioUrl: null,
+        mixedAudioUrl: null,
+        agentAudioUrl: null,
+        recordedAt: null,
+      },
     },
   }),
   (outbound) => outbound,

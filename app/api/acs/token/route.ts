@@ -25,9 +25,8 @@ export async function POST(request: Request) {
 
     return Response.json(tokenResponse);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to create ACS token";
+    console.error("[acs/token] Failed to create ACS token", error);
 
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: "Failed to create ACS token" }, { status: 500 });
   }
 }

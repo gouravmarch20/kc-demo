@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AcsFailedBanner } from "@/components/kyc/acs-failed-banner";
 import { KycShell } from "@/components/kyc/kyc-shell";
 import { OTPInput } from "@/components/kyc/otp-input";
@@ -10,11 +10,12 @@ import { AssistedStepBar } from "@/components/kyc/assisted-step-bar";
 import {
   VideoCallPanel,
   type AcsCallStatePayload,
+  type VideoCallPanelHandle,
 } from "@/components/kyc/video-call-panel";
 import { DUMMY_POLICY_CONTENT, KYC_QUESTIONS_CONFIG } from "@/lib/kyc/constants";
 import { isQuestionsComplete } from "@/lib/kyc/assisted-steps";
 import { generatePolicyNumber } from "@/lib/kyc/policy";
-import type { KycStep } from "@/lib/kyc/types";
+import type { KycRecordingState, KycStep } from "@/lib/kyc/types";
 import {
   btnPrimary,
   btnPrimaryBlock,
@@ -36,6 +37,7 @@ import {
   setRoomId,
   setRoomSecret,
   setPolicyNumber,
+  setMedia,
 } from "@/lib/store/kyc-slice";
 import { useKycRoom } from "@/hooks/useKycRoom";
 
@@ -72,6 +74,40 @@ const goTo = (dispatch: ReturnType<typeof useAppDispatch>, step: KycStep) => {
   dispatch(setCurrentStep(step));
 };
 
+function RecordingPreviewCard({
+  title,
+  description,
+  src,
+  type,
+  unavailableLabel,
+}: {
+  title: string;
+  description: string;
+  src: string | null;
+  type: "video" | "audio";
+  unavailableLabel?: string;
+}) {
+  return (
+    <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div>
+        <h3 className="text-sm font-bold text-slate-950">{title}</h3>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+      </div>
+      {src ? (
+        type === "video" ? (
+          <video src={src} controls playsInline className="aspect-video w-full rounded-lg bg-slate-950 object-contain" />
+        ) : (
+          <audio src={src} controls className="w-full" />
+        )
+      ) : (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          {unavailableLabel ?? "Not recorded yet. Go back to step 6 and save a preview recording."}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function KycWizard() {
   const dispatch = useAppDispatch();
   const journey = useAppSelector(selectKycJourney);
@@ -82,6 +118,7 @@ export function KycWizard() {
   const [submitting, setSubmitting] = useState(false);
   const [deviceChecking, setDeviceChecking] = useState(false);
   const [roomError, setRoomError] = useState<string | null>(null);
+  const videoPanelRef = useRef<VideoCallPanelHandle>(null);
 
   const roomId = journey.roomId;
   const { room, connected, patchRoom, verifyOtp: verifyOtpApi } = useKycRoom(
@@ -209,6 +246,7 @@ export function KycWizard() {
       return;
     }
     setOtpError(null);
+    await videoPanelRef.current?.stopRecording();
     dispatch(setOtpVerified(true));
     if (roomId) {
       await patchRoom({
@@ -234,6 +272,13 @@ export function KycWizard() {
       });
     },
     [patchRoom, roomId],
+  );
+
+  const handleRecordingReady = useCallback(
+    (recordings: KycRecordingState) => {
+      dispatch(setMedia({ recordings }));
+    },
+    [dispatch],
   );
 
   const submitFinalKyc = async () => {
@@ -507,11 +552,14 @@ export function KycWizard() {
 
           {roomId ? (
             <VideoCallPanel
+              ref={videoPanelRef}
               roomId={roomId}
               displayName="KYC Customer"
               role="customer"
               variant="customer-focus"
               onCallStateChange={handleCallStateChange}
+              recordingMode="customer-step-6"
+              onRecordingReady={handleRecordingReady}
             />
           ) : null}
 
@@ -611,7 +659,7 @@ export function KycWizard() {
         <NavFooter
           onBack={() => goTo(dispatch, 5)}
           onNext={() => goTo(dispatch, 7)}
-          nextLabel="Continue"
+          nextLabel="Review recordings"
           nextDisabled={!journey.otpVerified && !room?.otpVerified}
         />
       </KycShell>
@@ -619,9 +667,101 @@ export function KycWizard() {
   }
 
   if (journey.currentStep === 7) {
+    const recordings = journey.media.recordings;
+    const hasBrowserRecordings =
+      recordings.customerVideoOnlyUrl ||
+      recordings.customerVideoUrl ||
+      recordings.agentVideoUrl ||
+      recordings.combinedVideoUrl ||
+      recordings.fullVideoUrl ||
+      recordings.agentAudioUrl ||
+      recordings.customerMicAudioUrl ||
+      recordings.customerAudioUrl ||
+      recordings.mixedAudioUrl;
+
     return (
       <KycShell
         step={7}
+        title="Conversation Preview"
+        subtitle="Review the step 6 media captured in this browser before final submission."
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+            <h2 className="text-base font-bold text-sky-950">Step 6 recording review</h2>
+            <p className="mt-2 text-sm leading-6 text-sky-800">
+              Browser preview recordings are temporary and stay on this device. True agent-only
+              audio and mixed call audio require Azure Communication Services server-side call
+              recording.
+            </p>
+            {recordings.recordedAt ? (
+              <p className="mt-2 text-xs font-semibold text-sky-900">
+                Recorded {new Date(recordings.recordedAt).toLocaleString()}
+              </p>
+            ) : null}
+          </div>
+
+          {!hasBrowserRecordings ? (
+            <p className="rounded-lg bg-amber-50 p-4 text-sm font-medium text-amber-800">
+              No browser recording has been saved yet. You can go back to step 6, start recording,
+              stop and save the preview, then return here.
+            </p>
+          ) : null}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RecordingPreviewCard
+              title="Agent video only"
+              description="Silent video capture of the remote ACS agent tile."
+              src={recordings.agentVideoUrl}
+              type="video"
+            />
+            <RecordingPreviewCard
+              title="Customer video only"
+              description="Silent video capture of the customer's local camera preview."
+              src={recordings.customerVideoOnlyUrl}
+              type="video"
+            />
+            <RecordingPreviewCard
+              title="Agent, customer full video"
+              description="Side-by-side agent and customer video with the customer's microphone audio."
+              src={recordings.fullVideoUrl}
+              type="video"
+            />
+            <RecordingPreviewCard
+              title="Agent audio only"
+              description="Audio-only capture from the agent stream when the browser exposes it."
+              src={recordings.agentAudioUrl}
+              type="audio"
+              unavailableLabel="Agent audio was not exposed by this browser/ACS tile."
+            />
+            <RecordingPreviewCard
+              title="Agent + customer combined audio"
+              description="Combined audio from any available agent audio track plus the customer's microphone."
+              src={recordings.mixedAudioUrl}
+              type="audio"
+              unavailableLabel="Agent audio was not exposed by this browser/ACS tile; only customer audio may be available."
+            />
+            <RecordingPreviewCard
+              title="Customer audio only"
+              description="Audio-only recording of the customer's local microphone for download/review."
+              src={recordings.customerAudioUrl}
+              type="audio"
+            />
+          </div>
+        </div>
+
+        <NavFooter
+          onBack={() => goTo(dispatch, 6)}
+          onNext={() => goTo(dispatch, 8)}
+          nextLabel="Continue to Summary"
+        />
+      </KycShell>
+    );
+  }
+
+  if (journey.currentStep === 8) {
+    return (
+      <KycShell
+        step={8}
         title="Verification Summary"
         subtitle="Confirm the journey checklist and submit."
       >
@@ -648,7 +788,7 @@ export function KycWizard() {
           <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-700">{submitMessage}</p>
         ) : null}
         <div className="mt-8 flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-6">
-          <button type="button" onClick={() => goTo(dispatch, 6)} className={btnSecondary}>
+          <button type="button" onClick={() => goTo(dispatch, 7)} className={btnSecondary}>
             Back
           </button>
           <div className="flex flex-wrap gap-3">

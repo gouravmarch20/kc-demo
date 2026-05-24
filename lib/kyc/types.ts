@@ -1,4 +1,4 @@
-export type KycStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type KycStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export type KycRole = "customer" | "agent";
 
@@ -19,6 +19,20 @@ export type KycQuestionAnswers = {
 export type KycMediaState = {
   photoDataUrl: string | null;
   photoUrl: string | null;
+  recordings: KycRecordingState;
+};
+
+export type KycRecordingState = {
+  customerVideoUrl: string | null;
+  customerVideoOnlyUrl: string | null;
+  agentVideoUrl: string | null;
+  combinedVideoUrl: string | null;
+  fullVideoUrl: string | null;
+  customerMicAudioUrl: string | null;
+  customerAudioUrl: string | null;
+  mixedAudioUrl: string | null;
+  agentAudioUrl: string | null;
+  recordedAt: number | null;
 };
 
 export type DeviceCheckState = {

@@ -70,6 +70,22 @@ button:focus-visible {
   box-shadow: 0 0 0 4px var(--ring);
 }
 
+.acs-video-host,
+.acs-video-host > *,
+.acs-video-host video,
+.acs-video-host canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.acs-video-host video,
+.acs-video-host canvas {
+  display: block;
+  object-fit: contain !important;
+  object-position: center center;
+  background: #020617;
+}
+
 ::selection {
   background-color: rgba(220, 38, 38, 0.18);
   color: var(--foreground);
