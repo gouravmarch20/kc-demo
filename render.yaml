@@ -4,9 +4,19 @@ services:
     runtime: node
     plan: free
     branch: main
-    buildCommand: npm ci && npm run build
+    # `--include=dev` because we set NODE_ENV=production below (npm would
+    # otherwise skip devDependencies like typescript / tailwindcss / eslint
+    # that `next build` needs at compile time).
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node server.js
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # Render only sets NODE_ENV=production at *runtime*, not at build time.
+      # Without this, `next build` runs with NODE_ENV unset and Next 16.2.x
+      # crashes prerendering its internal `/_global-error` route with
+      # `Cannot read properties of null (reading 'useContext')`.
+      # See https://github.com/vercel/next.js/issues/87719.
+      - key: NODE_ENV
+        value: production
